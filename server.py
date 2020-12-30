@@ -3,6 +3,18 @@ import time
 import struct
 from _thread import *
 
+def printGroupNames(group1,group2):
+    group1names=''
+    for team in group1:
+        group1names+=team+" "
+    group2names=''
+    for team in group2:
+        group2names+=team+" "
+    str=  'Welcome to Keyboard Spamming Battle Royale \n Group 1 =='+group1names+"\n Group 2 =="+group2names
+    return str
+
+        
+
 
 def sendUDP():
 
@@ -19,29 +31,56 @@ def sendUDP():
         time.sleep(1)
     print("goodnight udp")
     udpServer.close()
+    tcpServer.settimeout(None)
 
 
 def threaded_client(connection):
+    
+    #wait for game
     print("client tread start")
-    connection.send(str.encode('Welcome to the Server\n'))
-    while True:
+    connection.send(str.encode('Welcome to the Server please wait until game starts \n'))
+    teamName=str(connection.recv(1024))
+    print(str(teamName)+" joined")
 
+    if ThreadCount%2==1:
+        group1.append(teamName)
+    else:
+        group2.append(teamName)
+
+    count=0
+
+    while time.time()<gameStartTime:
+        time.sleep(gameStartTime-time.time())  #sleep until begin
+
+    print("game starts")
+    connection.send(str.encode(printGroupNames(group1,group2)))
+    tcpServer.settimeout(None)
+    #game
+
+    
+    while time.time()<gameStartTime+10: # while game mode
         data = connection.recv(2048)
-        reply = 'Welcome to Keyboard Spamming Battle Royale.\n Group 1:\n== \n Group2:\n== \n Start pressing keys on your keyboard as fast as you can!! ' + \
-            data.decode('utf-8')
-        if not data:
-            break
+        count+=len(data.decode('utf-8'))
+        reply = 'Server Says: ' + data.decode('utf-8')
         connection.sendall(str.encode(reply))
-        while True:
-            data = connection.recv(2048)
-            reply = 'Server Says: ' + data.decode('utf-8')
-            if not data:
-                break
-            connection.sendall(str.encode(reply))
-        connection.close()
-
+        
+    print("game ends count= "+ str(count))
     connection.close()
 
+def getTCP_Connections():
+    try:
+        clientsocket, address = tcpServer.accept()
+        print("got another client!")
+        print('Connected to ' + address[0] + ':' + str(address[1]))
+        start_new_thread(threaded_client, (clientsocket, ))
+        ThreadCount += 1
+        print('Thread Number: ' + str(ThreadCount))
+    except:
+        socket.timeout
+
+
+startTime=time.time()
+gameStartTime=startTime+10
 
 tcpServer = socket.socket()
 tcpServer.settimeout(10)
@@ -51,6 +90,8 @@ ServerIp_Address = "127.0.0.1"
 #ServerIp_Address = "172.1.0/24"
 
 ThreadCount = 0
+group1=[]
+group2=[]
 
 try:
     tcpServer.bind((ServerIp_Address, ServerPort))
@@ -63,20 +104,13 @@ print("Server started,listening on IP address: %s" % ServerIp_Address)
 start_new_thread(sendUDP, ())
 
 
-endtime = time.time() + 10
-while time.time() < endtime:
-    try:
-        clientsocket, address = tcpServer.accept()
-        tcpServer.settimeout(None)
-        print("got another client!")
-        print('Connected to ' + address[0] + ':' + str(address[1]))
-        start_new_thread(threaded_client, (clientsocket, ))
-        ThreadCount += 1
-        print('Thread Number: ' + str(ThreadCount))
-    except:
-        socket.timeout
-        print("Timeout raised and caught.")
 
-    # add the name to a tean name array(look at reference )
-    # create new thread with each client  start_new_thread(todo-playwithclient (clientsocket))
+while time.time() < gameStartTime:  # getting tcp connetions
+    getTCP_Connections()
+    tcpServer.settimeout(None)
+
+
 print("bye")
+
+
+

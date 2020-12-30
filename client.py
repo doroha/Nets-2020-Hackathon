@@ -1,5 +1,6 @@
 import socket
 import struct
+import time
 
 # stage 2 clsoe upd and connect tcp
 
@@ -16,13 +17,21 @@ def stage2():
         socket.timeout
         print("you just missed it :(")
 
-    Response = clientSocket.recv(1024)
+    pleaseWait = clientSocket.recv(1024)
+    print (pleaseWait)
+    clientSocket.settimeout(None)
     clientSocket.send(str.encode('Narcomanim!'))
-    while True:
-        Response = clientSocket.recv(1024)
-        print(Response.decode('utf-8'))
+    StartMsg = clientSocket.recv(1024)  #game start
+    print(StartMsg)
+    EndGameTime=time.time()+10
+
+    
+
+    while time.time()<EndGameTime: 
         Input = input('')
         clientSocket.send(str.encode(Input))
+        Response = clientSocket.recv(1024)
+        print(Response.decode('utf-8'))
 
     clientSocket.close()
 
@@ -41,7 +50,9 @@ try:
     message = struct.unpack('Ibh', data)  # unpack offer
     if message[0] == int(0xfeedbeef):          # check cockie
         print("Received offer from ", addr, "attempting to connect... ")
-        stage2()
+        
 except:
     socket.timeout
     print("you didnt got any offers .. ")
+
+stage2()
