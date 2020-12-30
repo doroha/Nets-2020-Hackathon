@@ -21,11 +21,36 @@ def sendUDP():
     udpServer.close()
 
 
+def threaded_client(connection):
+    print("client tread start")
+    connection.send(str.encode('Welcome to the Server\n'))
+    while True:
+
+        data = connection.recv(2048)
+        reply = 'Welcome to Keyboard Spamming Battle Royale.\n Group 1:\n== \n Group2:\n== \n Start pressing keys on your keyboard as fast as you can!! ' + \
+            data.decode('utf-8')
+        if not data:
+            break
+        connection.sendall(str.encode(reply))
+        while True:
+            data = connection.recv(2048)
+            reply = 'Server Says: ' + data.decode('utf-8')
+            if not data:
+                break
+            connection.sendall(str.encode(reply))
+        connection.close()
+
+    connection.close()
+
+
 tcpServer = socket.socket()
+tcpServer.settimeout(10)
 
 ServerPort = 2146
 ServerIp_Address = "127.0.0.1"
 #ServerIp_Address = "172.1.0/24"
+
+ThreadCount = 0
 
 try:
     tcpServer.bind((ServerIp_Address, ServerPort))
@@ -37,14 +62,21 @@ print("Server started,listening on IP address: %s" % ServerIp_Address)
 
 start_new_thread(sendUDP, ())
 
-while True:
-    print("in loop")
-    # accept connections from outside
-    clientsocket, address = tcpServer.accept()
-    print("got another client!")
-    name = clientsocket.recv(1024)
-    print(name)
-    # now do something with the clientsocket
-    # in this case, we'll pretend this is a threaded server
-    #ct = client_thread(clientsocket)
-    # ct.run()
+
+endtime = time.time() + 10
+while time.time() < endtime:
+    try:
+        clientsocket, address = tcpServer.accept()
+        tcpServer.settimeout(None)
+        print("got another client!")
+        print('Connected to ' + address[0] + ':' + str(address[1]))
+        start_new_thread(threaded_client, (clientsocket, ))
+        ThreadCount += 1
+        print('Thread Number: ' + str(ThreadCount))
+    except:
+        socket.timeout
+        print("Timeout raised and caught.")
+
+    # add the name to a tean name array(look at reference )
+    # create new thread with each client  start_new_thread(todo-playwithclient (clientsocket))
+print("bye")
