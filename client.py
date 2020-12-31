@@ -1,58 +1,76 @@
-import socket
 import struct
 import time
+from socket import *
 
-# stage 2 clsoe upd and connect tcp
+Running = False
 
 
-def stage2():
-    print("stage2")
-    client.close()
-    clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    clientSocket.settimeout(10)
-    try:
-        clientSocket.connect(('127.0.0.1', 2146))
-        print("connected to server")
-    except:
-        socket.timeout
-        print("you just missed it :(")
+def client_app():
+    global Running
+    Running = True
 
-    pleaseWait = clientSocket.recv(1024)
-    print (pleaseWait)
-    clientSocket.settimeout(None)
-    clientSocket.send(str.encode('Narcomanim!'))
-    StartMsg = clientSocket.recv(1024)  #game start
-    print(StartMsg)
-    EndGameTime=time.time()+10
+    clientSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)  # udp
+    #clientSocket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    clientSocket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)  # broadcast
+    clientSocket.bind(('', 13117))
 
-    
+    print("Server started,listening on IP address 172.1.0.4")
+    # Client receive UDP message (cookie + offer type + TCP PORT)
+    data, addr = clientSocket.recvfrom(1024)
 
-    while time.time()<EndGameTime: 
-        Input = input('')
-        clientSocket.send(str.encode(Input))
-        Response = clientSocket.recv(1024)
-        print(Response.decode('utf-8'))
+    print("server says:")
+    print(addr)
+
+    offer = struct.unpack('Ibh', data)
+    print(offer)
+
+    # search until you get message with magic cockie
+    while offer[0] != 0xFEEDBEEF:
+        data, addr = clientSocket.recvfrom(1024)
+        offer = struct.unpack('Ibh', data)
+        print(offer)
 
     clientSocket.close()
+    address = addr[0]
+    print("Received offer from - " + str(address) + " attempting to connect...")
+
+    clientSocket = socket(AF_INET, SOCK_STREAM)
+    try:
+        # offer[2] is port number for server tcp
+        clientSocket.connect((address, offer[2]))
+    except:
+        Running = False
+        print("you just missed it :(")
+        return
+
+    name = "Narckos1\n"
+    clientSocket.send(name.encode('ascii'))  # send Team Name
+
+    welcome = clientSocket.recv(1024)  # receive Welcome message:
+    print(welcome.decode('ascii'))
+
+    t_end = time.time() + 15
+    while time.time() < t_end:
+        jibrish = input()
+        try:
+            clientSocket.send(jibrish.encode('ascii'))
+        except:
+            continue
+
+    try:
+        data = clientSocket.recv(40)  # you typed..
+        print(data.decode('ascii'))
+    except:
+        exit()
+
+    summary = clientSocket.recv(1024) # summary message
+    print(summary.decode('ascii'))
+
+    clientSocket.close()
+    print("Server disconnected, listening for offer requests. . .\n")
+    Running = False
 
 
-# look for server stage 1
-client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP
-client.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # brodcast
-client.bind(("", 13117))
-# after 10 sec the window is closed
-client.settimeout(10)
-print("Client started, listening for offer requests...")
-
-
-try:
-    data, addr = client.recvfrom(1024)  # wait for offer
-    message = struct.unpack('Ibh', data)  # unpack offer
-    if message[0] == int(0xfeedbeef):          # check cockie
-        print("Received offer from ", addr, "attempting to connect... ")
-        
-except:
-    socket.timeout
-    print("you didnt got any offers .. ")
-
-stage2()
+while not Running:
+    client_app()
+    time.sleep(8)
